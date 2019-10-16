@@ -211,6 +211,7 @@ async_def(bool success; int i)
                 f.success = true;
                 co2 = FROM_BE16(msg.result.co2BE);
                 tvoc = FROM_BE16(msg.result.tvocBE);
+                raw = FROM_BE16(msg.result.raw.raw);
                 MYDBG("%s data: CO2=%dppm, TVOC=%dppb, RAW I=%duA, ADC=%d",
                     msg.result.status.dataReady ? "new" : "old",
                     (int)co2, (int)tvoc, msg.result.raw.current, (msg.result.raw.adcHi) << 8 | msg.result.raw.adcLo);
@@ -223,6 +224,7 @@ async_def(bool success; int i)
         MYDBG("Measurement FAILED");
         init = false;
         co2 = tvoc = NAN;
+        raw = ~0;
     }
 
     wake.Set();

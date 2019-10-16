@@ -55,6 +55,8 @@ public:
     float GetCO2ppm() const { return co2; }
     //! Gets the last tVOC measurement in ppb; NaN if not available
     float GetTVOCppb() const { return tvoc; }
+    //! Gets the raw data from last measurement
+    uint16_t GetRaw() const { return raw; }
 
 private:
     bus::I2C& i2c;
@@ -63,6 +65,7 @@ private:
     bool init = false;
     GPIOPin wake, reset;
     float co2 = NAN, tvoc = NAN;
+    uint16_t raw;
 
     enum struct Register : uint8_t
     {
@@ -149,14 +152,18 @@ private:
         };
     };
 
-    struct RawData
+    union RawData
     {
-        //! Top two bits of raw ADC value
-        uint8_t adcHi : 2;
-        //! Current in microamperes
-        uint8_t current : 6;
-        //! Bottom eight bits of raw ADC value
-        uint8_t adcLo;
+        uint16_t raw;
+        struct
+        {
+            //! Top two bits of raw ADC value
+            uint8_t adcHi : 2;
+            //! Current in microamperes
+            uint8_t current : 6;
+            //! Bottom eight bits of raw ADC value
+            uint8_t adcLo;
+        };
     };
 
     struct EnvData
