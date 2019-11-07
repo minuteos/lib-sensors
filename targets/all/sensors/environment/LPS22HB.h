@@ -10,14 +10,12 @@
 
 #pragma once
 
-#include <kernel/kernel.h>
-
-#include <bus/I2C.h>
+#include <sensors/I2CSensor.h>
 
 namespace sensors::environment
 {
 
-class LPS22HB
+class LPS22HB : I2CSensor
 {
 public:
     enum struct Address : uint8_t
@@ -27,7 +25,7 @@ public:
     };
 
     LPS22HB(bus::I2C& i2c, Address address = Address::Low)
-        : i2c(i2c), address((uint8_t)address)
+        : I2CSensor(i2c, (uint8_t)address)
     {
     }
 
@@ -41,6 +39,9 @@ public:
     float GetPressure() const { return pressure; }
     //! Gets the last measured temperature in degrees celsius; NaN if not available
     float GetTemperature() const { return temperature; }
+
+protected:
+    const char* DebugComponent() const { return "LPS22HB"; }
 
 private:
     enum struct Register : uint8_t
@@ -119,16 +120,11 @@ private:
 
     Control1 Rate() const { return ctl1 & Control1::RateMask; }
 
-    async(WriteRegister, Register reg, uint8_t value);
-    async(ReadRegister, Register reg, Buffer value);
-
     async(Trigger) { return async_forward(WriteRegister, Register::Control2, (uint8_t)(ctl2 | Control2::Trigger)); }
     async(DataReady);
     async(WaitForDataTicks, mono_t ticksTimeout);
     async(WaitForDataMs, mono_t msTimeout) { return async_forward(WaitForDataTicks, MonoFromMilliseconds(msTimeout)); }
 
-    bus::I2C& i2c;
-    uint8_t address;
     bool init = false;
     Control1 ctl1 = Control1::SPI4Write | Control1::ContinuousDataUpdate | Control1::LowPassFilterOff | Control1::RateOneShot;
     Control2 ctl2 = Control2::AutoAddrIncrement;

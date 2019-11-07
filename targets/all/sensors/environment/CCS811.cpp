@@ -8,54 +8,8 @@
 
 #include "CCS811.h"
 
-#define MYDBG(...)  DBGCL("CCS811", __VA_ARGS__)
-
 namespace sensors::environment
 {
-
-async(CCS811::ReadRegister, Register reg, Buffer buf)
-async_def()
-{
-    if (await(i2c.Write, address, reg, true, false) != 1)
-    {
-        MYDBG("Failed to write register %02X address", reg);
-        async_return(false);
-    }
-
-    size_t len = await(i2c.Read, address, buf, false, true);
-    if (len != buf.Length())
-    {
-        MYDBG("Failed to read register %02X value, %d out of %d bytes read", reg, len, buf.Length());
-        async_return(false);
-    }
-
-    async_return(true);
-}
-async_end
-
-
-async(CCS811::WriteRegister, Register reg, Span buf)
-async_def()
-{
-    if (await(i2c.Write, address, reg, true, buf.Length() == 0) != 1)
-    {
-        MYDBG("Failed to write register %02X address", reg);
-        async_return(false);
-    }
-
-    if (buf.Length())
-    {
-        size_t len = await(i2c.Write, buf, true);
-        if (len != buf.Length())
-        {
-            MYDBG("Failed to write register %02X value, %d out of %d bytes read", reg, len, buf.Length());
-            async_return(false);
-        }
-    }
-
-    async_return(true);
-}
-async_end
 
 async(CCS811::SetMode, DriveMode mode)
 async_def()
@@ -110,7 +64,7 @@ async_def()
             break;
 
         MYDBG("Firmware in boot mode, starting application");
-        if (!await(WriteRegister, Register::BootAppStart))
+        if (!await(WriteRegister, Register::BootAppStart, Span()))
             async_return(false);
         async_delay_ms(10);
     }

@@ -8,8 +8,6 @@
 
 #include "SHTC3.h"
 
-#define MYDBG(...)  DBGCL("SHTC3", __VA_ARGS__)
-
 namespace sensors::environment
 {
 
@@ -35,7 +33,7 @@ async_def(uint8_t id[3])
 
     MYDBG("Reading ID...");
 
-    if (await(i2c.Read, Address, f.id, false, true) != sizeof(f.id))
+    if (await(Read, f.id, false, true) != sizeof(f.id))
     {
         MYDBG("Failed to read ID");
         async_return(false);
@@ -54,7 +52,7 @@ async_def(uint8_t cmd[2])
     f.cmd[0] = (unsigned)cmd >> 8;
     f.cmd[1] = (uint8_t)cmd;
 
-    if (await(i2c.Write, Address, f.cmd, true, stop) != 2)
+    if (await(Write, f.cmd, true, stop) != 2)
     {
         MYDBG("Failed to send command %04X", cmd);
         async_return(false);
@@ -82,7 +80,7 @@ async_def(uint8_t data[6]; bool success;)
     async_delay_ms(1);
 
     if (await(WriteCommand, lowPower ? Command::MeasureLowPower : Command::Measure, false) &&
-        await(i2c.Read, Address, f.data, false, true) == sizeof(f.data))
+        await(Read, f.data, false, true) == sizeof(f.data))
     {
         uint16_t rawTemp = (f.data[0] << 8) | f.data[1];
         uint16_t rawHum = (f.data[3] << 8) | f.data[4];

@@ -8,14 +8,12 @@
 
 #pragma once
 
-#include <kernel/kernel.h>
-
-#include <bus/I2C.h>
+#include <sensors/I2CSensor.h>
 
 namespace sensors::position
 {
 
-class TLE493D
+class TLE493D : I2CSensor
 {
 public:
     enum struct Address : uint8_t
@@ -27,7 +25,7 @@ public:
     };
 
     TLE493D(bus::I2C& i2c, Address address)
-        : i2c(i2c), address((uint8_t)address)
+        : I2CSensor(i2c, (uint8_t)address)
     {
     }
 
@@ -42,6 +40,9 @@ public:
     async(Init);
     //! Retrieves the last measurement result, return value indicates if the measured values have changed in the meantime
     async(Measure);
+
+protected:
+    const char* DebugComponent() const { return "TLE493D"; }
 
 private:
     enum struct Register : uint8_t
@@ -120,10 +121,8 @@ private:
     DECLARE_FLAG_ENUM(Mode1);
 
     //! Returns the configred address in Mode1 register format
-    Mode1 Mode1Address() const { return (Mode1::Address2 * GETBIT(address, 6)) | (Mode1::Address1 * !GETBIT(address, 4)); }
+    Mode1 Mode1Address() const { return (Mode1::Address2 * GETBIT(BusAddress(), 6)) | (Mode1::Address1 * !GETBIT(BusAddress(), 4)); }
 
-    bus::I2C& i2c;
-    uint8_t address;
     bool init = false;
     float x = NAN, y = NAN, z = NAN;
 

@@ -8,9 +8,7 @@
 
 #pragma once
 
-#include <kernel/kernel.h>
-
-#include <bus/I2C.h>
+#include <sensors/I2CSensor.h>
 
 #include <hw/GPIO.h>
 
@@ -18,7 +16,7 @@ namespace sensors::environment
 {
 
 //! Driver for ams CCS811 CO2/VOC sensor
-class CCS811
+class CCS811 : I2CSensor
 {
 public:
     enum struct Address : uint8_t
@@ -37,7 +35,7 @@ public:
     };
 
     CCS811(bus::I2C& i2c, Address address = Address::Low, GPIOPin wake = Px, GPIOPin reset = Px)
-        : i2c(i2c), address((uint8_t)address), wake(wake), reset(reset)
+        : I2CSensor(i2c, (uint8_t)address), wake(wake), reset(reset)
     {
     }
 
@@ -58,9 +56,10 @@ public:
     //! Gets the raw data from last measurement
     uint16_t GetRaw() const { return raw; }
 
+protected:
+    const char* DebugComponent() const { return "CCS811"; }
+
 private:
-    bus::I2C& i2c;
-    uint8_t address;
     DriveMode mode = DriveMode::Idle;
     bool init = false;
     GPIOPin wake, reset;
@@ -239,9 +238,6 @@ private:
         AppEraseKey appErase;
         AppVerifyKey appVerify;
     } msg;
-
-    async(ReadRegister, Register reg, Buffer buf);
-    async(WriteRegister, Register reg, Span buf = Span());
 };
 
 }

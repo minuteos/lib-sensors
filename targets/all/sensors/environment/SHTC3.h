@@ -8,15 +8,13 @@
 
 #pragma once
 
-#include <kernel/kernel.h>
-
-#include <bus/I2C.h>
+#include <sensors/I2CSensor.h>
 
 namespace sensors::environment
 {
 
 //! Driver for Sensirion SHTC3 Humidity/Temperature sensor
-class SHTC3
+class SHTC3 : I2CSensor
 {
 public:
     enum
@@ -25,7 +23,7 @@ public:
     };
 
     SHTC3(bus::I2C& i2c, bool lowPower = false)
-        : i2c(i2c)
+        : I2CSensor(i2c, Address), lowPower(lowPower)
     {
     }
 
@@ -44,8 +42,10 @@ public:
     //! Gets the last measured relative humidity. NaN when there is no measurement available.
     float GetHumidity() const { return hum; }
 
+protected:
+    const char* DebugComponent() const { return "SHTC3"; }
+
 private:
-    bus::I2C& i2c;
     float temp = NAN, hum = NAN;
     bool init = false;
     bool lowPower = false;

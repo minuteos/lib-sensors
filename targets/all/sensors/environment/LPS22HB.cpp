@@ -8,8 +8,6 @@
 
 #include "LPS22HB.h"
 
-#define MYDBG(...)  DBGCL("LPS22HB", __VA_ARGS__)
-
 namespace sensors::environment
 {
 
@@ -65,37 +63,6 @@ async_def(struct { Status status; uint32_t pressure : 24; int16_t temperature; }
     pressure = f.data.pressure * (1.0f / 4096);
     temperature = f.data.temperature * 0.01f;
     MYDBG("new data: P=%.3q, T=%.2q", int(pressure * 1000), int(temperature * 100));
-    async_return(true);
-}
-async_end
-
-async(LPS22HB::WriteRegister, Register reg, uint8_t value)
-async_def(struct { Register reg; uint8_t value; } cmd;)
-{
-    f.cmd = { reg, value };
-
-    if (await(i2c.Write, address, f.cmd, true, true) != 2)
-    {
-        MYDBG("Failed to write %02X to register %02X", value, reg);
-        async_return(false);
-    }
-
-    async_return(true);
-}
-async_end
-
-async(LPS22HB::ReadRegister, Register reg, Buffer buf)
-async_def(Register reg)
-{
-    f.reg = reg;
-
-    if (await(i2c.Write, address, f.reg, true, false) != 1 ||
-        await(i2c.Read, address, buf, false, true) != (intptr_t)buf.Length())
-    {
-        MYDBG("Failed to read register %02X", reg);
-        async_return(false);
-    }
-
     async_return(true);
 }
 async_end

@@ -8,8 +8,6 @@
 
 #include "TLE493D.h"
 
-#define MYDBG(...)  DBGCL("TLE493D", __VA_ARGS__)
-
 namespace sensors::position
 {
 
@@ -49,8 +47,8 @@ async_def(
     f.init.mode1 = f.init.mode1 | (!__builtin_parity((uint8_t)f.init.mode1) * Mode1::FuseParity);
 
     // double configuration to verify the device did not stop communicatings
-    if (await(i2c.Write, address, f.init, true, true) != sizeof(f.init) ||
-        await(i2c.Write, address, f.init, true, true) != sizeof(f.init))
+    if (await(Write, f.init, true, true) != sizeof(f.init) ||
+        await(Write, f.init, true, true) != sizeof(f.init))
     {
         MYDBG("Failed to configure sensor");
         async_return(false);
@@ -59,7 +57,7 @@ async_def(
     async_delay_ms(1);
 
     MYDBG("Reading registers...");
-    if (await(i2c.Read, address, f.data, true, true) != sizeof(f.data))
+    if (await(Read, f.data, true, true) != sizeof(f.data))
     {
         MYDBG("Failed to read registers register");
         async_return(false);
@@ -96,7 +94,7 @@ async_def(
         async_return(false);
     }
 
-    if (await(i2c.Read, address, f.data, true, true) != sizeof(f.data))
+    if (await(Read, f.data, true, true) != sizeof(f.data))
     {
         MYDBG("Failed to read measurement");
         async_return(false);
