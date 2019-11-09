@@ -119,13 +119,10 @@ private:
 
     enum struct Control1 : uint8_t
     {
-        _Default = 0x10,
     };
 
     enum struct Control2 : uint8_t
     {
-        _Default = 0,
-
         Reset = 4,
         Reboot = 8,
 
@@ -137,8 +134,6 @@ private:
 
     enum struct Control3 : uint8_t
     {
-        _Default = 0x03,
-
         ModeContinuous = 0,
         ModeSingle = 1,
         ModePowerDown = 2,
@@ -147,7 +142,6 @@ private:
 
     enum struct Control4 : uint8_t
     {
-        _Default = 0,
     };
 
     DECLARE_FLAG_ENUM(Status);
@@ -164,12 +158,12 @@ private:
         {
             struct
             {
-                Control1 ctl1 = Control1::_Default;
-                Control2 ctl2 = Control2::_Default;
-                Control3 ctl3 = Control3::_Default;
-                Control4 ctl4 = Control4::_Default;
+                Control1 ctl1;
+                Control2 ctl2;
+                Control3 ctl3;
+                Control4 ctl4;
             };
-            uint32_t combined;
+            uint32_t combined = FROM_BE32(0x10000300);  // initialize with default values of registers
         };
 
         float GetScale() const { return BYTES(4, 8, 12, 16)[(uint8_t(ctl2) >> 5) & 3]; }
