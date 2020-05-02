@@ -24,7 +24,7 @@ public:
         High = 0x5D,
     };
 
-    LPS22HB(bus::I2C& i2c, Address address = Address::Low)
+    LPS22HB(bus::I2C i2c, Address address)
         : I2CSensor(i2c, (uint8_t)address)
     {
     }

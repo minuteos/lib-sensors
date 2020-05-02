@@ -22,7 +22,7 @@ public:
         Address = 0x70,
     };
 
-    SHTC3(bus::I2C& i2c, bool lowPower = false)
+    SHTC3(bus::I2C i2c, bool lowPower = false)
         : I2CSensor(i2c, Address), lowPower(lowPower)
     {
     }

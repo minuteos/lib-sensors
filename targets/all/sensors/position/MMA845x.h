@@ -53,7 +53,7 @@ public:
         Scale8g = 2 << 16,
     };
 
-    MMA845x(bus::I2C& i2c, Address address)
+    MMA845x(bus::I2C i2c, Address address)
         : I2CSensor(i2c, (uint8_t)address)
     {
     }

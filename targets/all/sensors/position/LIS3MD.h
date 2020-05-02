@@ -58,7 +58,7 @@ public:
         PowerUltra = PowerXYUltra | PowerZUltra,
     };
 
-    LIS3MD(bus::I2C& i2c, Address address)
+    LIS3MD(bus::I2C i2c, Address address)
         : I2CSensor(i2c, (uint8_t)address)
     {
     }

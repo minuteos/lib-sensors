@@ -24,7 +24,7 @@ public:
         A3 = 0x44,  // 0b100 0100
     };
 
-    TLE493D(bus::I2C& i2c, Address address)
+    TLE493D(bus::I2C i2c, Address address)
         : I2CSensor(i2c, (uint8_t)address)
     {
     }

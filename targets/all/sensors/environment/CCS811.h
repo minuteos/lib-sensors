@@ -34,7 +34,7 @@ public:
         ConstantPower_250ms = 4,
     };
 
-    CCS811(bus::I2C& i2c, Address address = Address::Low, GPIOPin wake = Px, GPIOPin reset = Px)
+    CCS811(bus::I2C i2c, Address address = Address::Low, GPIOPin wake = Px, GPIOPin reset = Px)
         : I2CSensor(i2c, (uint8_t)address), wake(wake), reset(reset)
     {
     }

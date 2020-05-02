@@ -18,7 +18,7 @@ namespace sensors
 class I2CSensor
 {
 protected:
-    I2CSensor(bus::I2C& i2c, uint8_t address)
+    I2CSensor(bus::I2C i2c, uint8_t address)
         : i2c(i2c), address(address)
     {
     }
@@ -46,7 +46,7 @@ protected:
 #endif
 
 private:
-    bus::I2C& i2c;
+    bus::I2C i2c;
     uint8_t address;
 
     async(ReadRegisterImpl, uint8_t reg, Buffer buf);

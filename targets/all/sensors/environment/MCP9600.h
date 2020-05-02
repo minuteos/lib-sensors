@@ -18,7 +18,7 @@ namespace sensors::environment
 class MCP9600 : I2CSensor
 {
 public:
-    MCP9600(bus::I2C& i2c, uint8_t addr = 0)
+    MCP9600(bus::I2C i2c, uint8_t addr = 0)
         : I2CSensor(i2c, AddressBase | addr)
     {
     }
