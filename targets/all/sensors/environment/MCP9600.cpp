@@ -51,7 +51,7 @@ async_def(
         MYDBG("Init complete, ID: %02X rev %d.%d", f.info.id, f.info.maj, f.info.min);
     }
 
-    if (init || config.sensor != sensorConfig)
+    if (!init || config.sensor != sensorConfig)
     {
         f.config.sensor = sensorConfig;
         if (!await(WriteRegister, Register::SensorConfig, f.config.sensor))
@@ -61,7 +61,7 @@ async_def(
         config.sensor = f.config.sensor;
     }
 
-    if (init || config.device != deviceConfig)
+    if (!init || config.device != deviceConfig || (deviceConfig & DeviceConfig::_ModeMask) == DeviceConfig::ModeBurst)
     {
         f.config.device = deviceConfig;
         if (!await(WriteRegister, Register::DeviceConfig, f.config.device))
@@ -107,10 +107,10 @@ async_def(
 
     while (f.errors < MaxErrors && !await(ReadRegister, Register::HotJunction, f.data))
     {
-        f.errors++;
+         f.errors++;
     }
 
-    while (f.errors < MaxErrors)
+    while (f.errors < MaxErrors && !f.data.complete)
     {
         if (await(ReadRegister, Register::HotJunction, f.data2))
         {
@@ -137,7 +137,7 @@ async_def(
         MYTRACE("%d errors before successful data read", f.errors);
     }
 
-    if (f.data.update)
+    if (f.data.update || f.data.complete)
     {
         await(WriteRegister, Register::Status, BYTES(0));
         tempHot = int16_t(FROM_BE16(f.data.tHot)) * TEMP_MUL;
