@@ -11,7 +11,7 @@
 namespace sensors::environment
 {
 
-async(LPS22HB::Init)
+async(LPS22HB::InitImpl, InitConfig cfg)
 async_def(uint8_t id)
 {
     MYDBG("Reading ID...");
@@ -27,13 +27,22 @@ async_def(uint8_t id)
         async_return(false);
     }
 
-    MYDBG("Init complete, ID: %02X", f.id);
+    if (!await(WriteRegister, Register::Control2, Control2::Reset) ||
+        !await(WriteRegister, Register::Control1, cfg.ctl1) ||
+        !await(WriteRegister, Register::FifoControl, cfg.fifo) ||
+        !await(WriteRegister, Register::Control2, cfg.ctl2))
+    {
+        async_return(false);
+    }
+
+    this->cfg = cfg;
+    MYDBG("Init complete, ID: %02X, CTL1: %02X, CTL2: %02X, FIFO: %02X", f.id, cfg.ctl1, cfg.ctl2, cfg.fifo);
     async_return(init = true);
 }
 async_end
 
 async(LPS22HB::Measure)
-async_def(struct { Status status; uint32_t pressure : 24; int16_t temperature; } data;)
+async_def(PACKED_UNALIGNED_STRUCT { Status status; Sample smp; } data;)
 {
     if (!init && !await(Init))
     {
@@ -42,7 +51,7 @@ async_def(struct { Status status; uint32_t pressure : 24; int16_t temperature; }
 
     if (Rate() == Control1::RateOneShot)
     {
-        if (!await(Trigger) || !await(WaitForDataMs, 1000))
+        if (!await(Trigger) || !await(WaitForData, MonoFromMilliseconds(1000)))
         {
             async_return(false);
         }
@@ -60,25 +69,55 @@ async_def(struct { Status status; uint32_t pressure : 24; int16_t temperature; }
         async_return(false);
     }
 
-    pressure = f.data.pressure * (1.0f / 4096);
-    temperature = f.data.temperature * 0.01f;
+    pressure = f.data.smp.Pressure();
+    temperature = f.data.smp.Temperature();
     MYDBG("new data: P=%.3q, T=%.2q", int(pressure * 1000), int(temperature * 100));
     async_return(true);
 }
 async_end
 
-async(LPS22HB::DataReady)
-async_def(Status stat)
+async(LPS22HB::Trigger)
+async_def(Control2 ctl2)
 {
-    async_return(await(ReadRegister, Register::Status, f.stat) &&
-        (f.stat & (Status::PressureAvailable | Status::TemperatureAvailable)) == (Status::PressureAvailable | Status::TemperatureAvailable));
+    f.ctl2 = cfg.ctl2 | Control2::Trigger;
+    async_return(await(WriteRegister, Register::Control2, f.ctl2));
 }
 async_end
 
-async(LPS22HB::WaitForDataTicks, mono_t ticksTimeout)
+async(LPS22HB::DataReady)
+async_def(
+    FifoStatus stat;
+)
+{
+    async_return(await(ReadRegister, Register::FifoStatus, f.stat) ? f.stat.count : 0);
+}
+async_end
+
+async(LPS22HB::ReadFifo, Sample* buffer, size_t count)
+async_def(
+    FifoStatus stat;
+    size_t count;
+)
+{
+    if (count == 0 || !await(ReadRegister, Register::FifoStatus, f.stat) || f.stat.count == 0)
+    {
+        async_return(0);
+    }
+
+    f.count = std::min(count, (size_t)f.stat.count);
+    if (!await(ReadRegister, Register::Data, Buffer(buffer, f.count * sizeof(Sample))))
+    {
+        async_return(0);
+    }
+
+    async_return(f.count);
+}
+async_end
+
+async(LPS22HB::WaitForData, mono_t timeout)
 async_def(mono_t waitUntil)
 {
-    f.waitUntil = MONO_CLOCKS + ticksTimeout;
+    f.waitUntil = MONO_CLOCKS + timeout;
 
     while (!await(DataReady))
     {
