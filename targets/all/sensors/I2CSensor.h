@@ -39,8 +39,8 @@ protected:
     uint8_t BusAddress() const { return address; }
 
 #if TRACE
-    virtual const char* DebugComponent() const { return "I2CSensor?"; }
-    template<typename... Args> void MYDBG(Args... args) { DBGC(DebugComponent(), args...); _DBGCHAR('\n'); }
+    virtual const char* DebugComponent() const { return "I2CSensor"; }
+    template<typename... Args> void MYDBG(Args... args) { DBG("%s[%02X]: ", DebugComponent(), address); _DBG(args...); _DBGCHAR('\n'); }
 #else
     template<typename... Args> void MYDBG(Args...) {}
 #endif
