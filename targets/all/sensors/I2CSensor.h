@@ -32,9 +32,9 @@ protected:
     //! Continues a running I2C write transaction with optional stop
     async(Write, Span buf, bool stop) { return async_forward(i2c.Write, buf, stop); }
     //! Reads data from consecutive registers (register address is written before changing direction)
-    template<typename T> async(ReadRegister, T reg, Buffer buf) { return async_forward(ReadRegisterImpl, (uint8_t)reg, buf); }
+    template<typename T> async(ReadRegister, T reg, Buffer buf) { return async_forward(ReadRegisterImpl, RegAndLength(uint8_t(reg), buf.Length()), buf.Pointer()); }
     //! Writes data to consecutive registers (register address is written as the first byte)
-    template<typename T> async(WriteRegister, T reg, Span buf) { return async_forward(WriteRegisterImpl, (uint8_t)reg, buf); }
+    template<typename T> async(WriteRegister, T reg, Span buf) { return async_forward(WriteRegisterImpl, RegAndLength(uint8_t(reg), buf.Length()), buf.Pointer()); }
 
     uint8_t BusAddress() const { return address; }
 
@@ -49,8 +49,21 @@ private:
     bus::I2C i2c;
     uint8_t address;
 
-    async(ReadRegisterImpl, uint8_t reg, Buffer buf);
-    async(WriteRegisterImpl, uint8_t reg, Span buf);
+    union RegAndLength
+    {
+        constexpr RegAndLength(uint8_t reg, uint16_t length)
+            : value(reg << 16 | length){}
+
+        uint32_t value;
+        struct
+        {
+            uint16_t length;
+            uint8_t reg;
+        };
+    };
+
+    async(ReadRegisterImpl, RegAndLength arg, void* buf);
+    async(WriteRegisterImpl, RegAndLength arg, const void* buf);
 };
 
 }

@@ -11,19 +11,19 @@
 namespace sensors
 {
 
-async(I2CSensor::ReadRegisterImpl, uint8_t reg, Buffer buf)
+async(I2CSensor::ReadRegisterImpl, RegAndLength arg, void* buf)
 async_def()
 {
-    if (await(i2c.Write, address, reg, true, false) != 1)
+    if (await(i2c.Write, address, arg.reg, true, false) != 1)
     {
-        MYDBG("Failed to write register %02X address", reg);
+        MYDBG("Failed to write register %02X address", arg.reg);
         async_return(false);
     }
 
-    size_t len = await(i2c.Read, address, buf, false, true);
-    if (len != buf.Length())
+    size_t len = await(i2c.Read, address, Buffer(buf, arg.length), false, true);
+    if (len != arg.length)
     {
-        MYDBG("Failed to read register %02X value, error at %d/%d", reg, len, buf.Length());
+        MYDBG("Failed to read register %02X value, error at %d/%d", arg.reg, len, arg.length);
         async_return(false);
     }
 
@@ -31,21 +31,21 @@ async_def()
 }
 async_end
 
-async(I2CSensor::WriteRegisterImpl, uint8_t reg, Span buf)
+async(I2CSensor::WriteRegisterImpl, RegAndLength arg, const void* buf)
 async_def()
 {
-    if (await(i2c.Write, address, reg, true, buf.Length() == 0) != 1)
+    if (await(i2c.Write, address, arg.reg, true, arg.length == 0) != 1)
     {
-        MYDBG("Failed to write register %02X address", reg);
+        MYDBG("Failed to write register %02X address", arg.reg);
         async_return(false);
     }
 
-    if (buf.Length())
+    if (arg.length)
     {
-        size_t len = await(i2c.Write, buf, true);
-        if (len != buf.Length())
+        size_t len = await(i2c.Write, Span(buf, arg.length), true);
+        if (len != arg.length)
         {
-            MYDBG("Failed to write register %02X value, error at %d/%d", reg, len, buf.Length());
+            MYDBG("Failed to write register %02X value, error at %d/%d", arg.reg, len, arg.length);
             async_return(false);
         }
     }
