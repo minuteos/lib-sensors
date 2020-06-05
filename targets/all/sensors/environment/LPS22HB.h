@@ -10,12 +10,12 @@
 
 #pragma once
 
-#include <sensors/I2CSensor.h>
+#include <sensors/Sensor.h>
 
 namespace sensors::environment
 {
 
-class LPS22HB : I2CSensor
+class LPS22HB : Sensor
 {
 public:
     enum struct Address : uint8_t
@@ -34,7 +34,12 @@ public:
     };
 
     LPS22HB(bus::I2C i2c, Address address)
-        : I2CSensor(i2c, (uint8_t)address)
+        : Sensor(i2c, (uint8_t)address)
+    {
+    }
+
+    LPS22HB(bus::SPI spi, GPIOPin cs)
+        : Sensor(spi, cs, 0x80, 0x00)
     {
     }
 

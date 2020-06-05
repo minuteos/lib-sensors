@@ -12,6 +12,8 @@
 
 #include <bus/I2C.h>
 
+#include "Interface.h"
+
 namespace sensors
 {
 
@@ -40,7 +42,8 @@ protected:
 
 #if TRACE
     virtual const char* DebugComponent() const { return "I2CSensor"; }
-    template<typename... Args> void MYDBG(Args... args) { DBG("%s[%02X]: ", DebugComponent(), address); _DBG(args...); _DBGCHAR('\n'); }
+    void _DebugHeader() const { DBG("%s[%02X]: ", DebugComponent(), address); }
+    template<typename... Args> void MYDBG(Args... args) { _DBG(args...); _DBGCHAR('\n'); }
 #else
     template<typename... Args> void MYDBG(Args...) {}
 #endif
@@ -49,21 +52,12 @@ private:
     bus::I2C i2c;
     uint8_t address;
 
-    union RegAndLength
-    {
-        constexpr RegAndLength(uint8_t reg, uint16_t length)
-            : value(reg << 16 | length){}
-
-        uint32_t value;
-        struct
-        {
-            uint16_t length;
-            uint8_t reg;
-        };
-    };
+    typedef Interface::RegAndLength RegAndLength;
 
     async(ReadRegisterImpl, RegAndLength arg, void* buf);
     async(WriteRegisterImpl, RegAndLength arg, const void* buf);
+
+    friend class I2CInterface;
 };
 
 }
