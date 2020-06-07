@@ -185,7 +185,7 @@ private:
     async(InitImpl, InitConfig cfg);
     async(Trigger);
     async(DataReady);
-    async(WaitForData, mono_t timeout);
+    async(WaitForData, Timeout timeout);
 
     bool init = false;
     InitConfig cfg;

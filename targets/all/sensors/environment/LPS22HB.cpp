@@ -51,7 +51,7 @@ async_def(PACKED_UNALIGNED_STRUCT { Status status; Sample smp; } data;)
 
     if (Rate() == Control1::RateOneShot)
     {
-        if (!await(Trigger) || !await(WaitForData, MonoFromMilliseconds(1000)))
+        if (!await(Trigger) || !await(WaitForData, Timeout::Seconds(1)))
         {
             async_return(false);
         }
@@ -114,19 +114,21 @@ async_def(
 }
 async_end
 
-async(LPS22HB::WaitForData, mono_t timeout)
-async_def(mono_t waitUntil)
+async(LPS22HB::WaitForData, Timeout timeout)
+async_def(
+    Timeout timeout;
+)
 {
-    f.waitUntil = MONO_CLOCKS + timeout;
+    f.timeout = timeout.MakeAbsolute();
 
     while (!await(DataReady))
     {
-        if (OVF_GE(MONO_CLOCKS, f.waitUntil))
+        if (timeout.Elapsed())
         {
             MYDBG("Timeout while waiting for measurement");
             async_return(false);
         }
-        async_delay_until(OVF_MIN(MONO_CLOCKS + MonoFromMilliseconds(10), f.waitUntil));
+        async_delay_timeout(std::min(timeout.Milliseconds(10).MakeAbsolute(), f.timeout));
     }
 
     async_return(true);
