@@ -43,7 +43,7 @@ protected:
 #if TRACE
     virtual const char* DebugComponent() const { return "I2CSensor"; }
     void _DebugHeader() const { DBG("%s[%02X]: ", DebugComponent(), address); }
-    template<typename... Args> void MYDBG(Args... args) { _DBG(args...); _DBGCHAR('\n'); }
+    template<typename... Args> void MYDBG(Args... args) { _DebugHeader(); _DBG(args...); _DBGCHAR('\n'); }
 #else
     template<typename... Args> void MYDBG(Args...) {}
 #endif
