@@ -70,6 +70,8 @@ public:
     //! Retrieves fifo contents
     async(ReadFifo, Sample* buffer, size_t count);
 
+    //! Checks if the sensor is initialized
+    bool Initialized() const { return init; }
     //! Gets the last measured pressure in hPa; NaN if not available
     float GetPressure() const { return pressure; }
     //! Gets the last measured temperature in degrees celsius; NaN if not available
