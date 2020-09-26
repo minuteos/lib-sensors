@@ -76,6 +76,8 @@ public:
 
     //! Initializes the sensor
     async(Init, SensorConfig sensorConfig = SensorConfig::_Default, DeviceConfig deviceConfig = DeviceConfig::_Default);
+    //! Triggeres a single measurement
+    async(Trigger);
     //! Retrieves the last measurement result, return value indicates if the measured values have changed in the meantime
     async(Measure);
 
