@@ -40,6 +40,11 @@ protected:
 
     uint8_t BusAddress() const { return address; }
 
+    //! Gets the current bus frequency
+    uint32_t OutputFrequency() const { return i2c.OutputFrequency(); }
+    //! Sets the current bus frequency
+    void OutputFrequency(uint32_t freq) { i2c.OutputFrequency(freq); }
+
 #if TRACE
     virtual const char* DebugComponent() const { return "I2CSensor"; }
     void _DebugHeader() const { DBG("%s[%02X]: ", DebugComponent(), address); }
