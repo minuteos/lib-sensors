@@ -18,7 +18,7 @@ async_def(
 )
 {
     init = false;
-    if (!await(ReadRegister, Register::DEVICE_ID, f.value))
+    if (!await(ReadRegister, Register::DEVICE_ID, f.value, true))
     {
         async_return(false);
     }
@@ -96,7 +96,7 @@ async_def(
 )
 {
     f.timeout = timeout.MakeAbsolute();
-    
+
     do
     {
         if (!await(ReadRegister, Register::FDC_CONF, f.config))
