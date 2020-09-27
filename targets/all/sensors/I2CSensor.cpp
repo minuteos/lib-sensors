@@ -16,7 +16,10 @@ async_def()
 {
     if (await(i2c.Write, address, arg.reg, true, false) != 1)
     {
-        MYDBG("Failed to write register %02X address", arg.reg);
+        if (!arg.allowFail)
+        {
+            MYDBG("Failed to write register %02X address", arg.reg);
+        }
         async_return(false);
     }
 
