@@ -20,13 +20,12 @@ async_def()
         if (init)
         {
             // device initialized, try to change mode immediately
-            wake.Res();
-            async_delay_ms(1);
+            await(Wake);
             msg.mode.raw = 0;
             msg.mode.driveMode = (uint8_t)mode;
             DBG("Changing mode to %d", mode);
             init = await(WriteRegister, Register::Mode, msg.mode);
-            wake.Set();
+            await(Sleep);
         }
     }
 }
@@ -37,6 +36,7 @@ async_def()
 {
     MYDBG("Resetting...");
     async_yield();
+    wakeCount++;
     wake.Res();
     reset.Res();
     async_delay_ms(1);
@@ -46,18 +46,18 @@ async_def()
     MYDBG("Initializing...");
 
     if (!await(ReadRegister, Register::HWID, msg.hwId))
-        async_return(false);
+        goto done;
 
     if (msg.hwId != HwID::CCS811)
     {
         MYDBG("Unexpected HWID value: %02X, expected %02X", msg.hwId, HwID::CCS811);
-        async_return(false);
+        goto done;
     }
 
     for (;;)
     {
         if (!await(ReadRegister, Register::Status, msg.status))
-            async_return(false);
+            goto done;
 
         MYDBG("STATUS: %02X", msg.status.raw);
         if (msg.status.appRunning)
@@ -65,12 +65,12 @@ async_def()
 
         MYDBG("Firmware in boot mode, starting application");
         if (!await(WriteRegister, Register::BootAppStart, Span()))
-            async_return(false);
+            goto done;
         async_delay_ms(10);
     }
 
     if (!await(ReadRegister, Register::Mode, msg.mode))
-        async_return(false);
+        goto done;
 
     MYDBG("MODE: %d %c%c", msg.mode.driveMode, msg.mode.intDataReady ? 'I' : '-', msg.mode.intThreshold ? 'T': '-');
     if (msg.mode.driveMode != (uint8_t)mode)
@@ -78,33 +78,37 @@ async_def()
         MYDBG("Setting mode %d", mode);
         msg.mode.driveMode = (uint8_t)mode;
         if (!await(WriteRegister, Register::Mode, msg.mode))
-            async_return(false);
+            goto done;
     }
 
 #if TRACE
     if (!await(ReadRegister, Register::HWVersion, msg.hwVer))
-        async_return(false);
+        goto done;
 
     MYDBG("HWVER: %d.%d", msg.hwVer.major, msg.hwVer.build);
 
     if (!await(ReadRegister, Register::FWBootVersion, msg.bootVer))
-        async_return(false);
+        goto done;
 
     MYDBG("BOOT: %d.%d.%d", msg.bootVer.major, msg.bootVer.minor, msg.bootVer.trivial);
 
     if (!await(ReadRegister, Register::FWAppVersion, msg.appVer))
-        async_return(false);
+        goto done;
 
     MYDBG("APP: %d.%d.%d", msg.appVer.major, msg.appVer.minor, msg.appVer.trivial);
 
     if (!await(ReadRegister, Register::ErrorID, msg.error))
-        async_return(false);
+        goto done;
 
     MYDBG("ERROR: %d", msg.error);
 #endif
 
-    wake.Set();
-    async_return(init = true);
+    RequestUpdate();
+    async_yield();
+    init = true;
+done:
+    await(Sleep);
+    async_return(init);
 }
 async_end
 
@@ -113,8 +117,7 @@ async_def(bool success; int i)
 {
     if (init || await(Init))
     {
-        wake.Res();
-        async_delay_ms(1);
+        await(Wake);
 
         if (mode == DriveMode::Idle)
         {
@@ -179,10 +182,73 @@ async_def(bool success; int i)
         init = false;
         co2 = tvoc = NAN;
         raw = ~0;
+        envSet = { ~0u };
     }
 
-    wake.Set();
+    await(Sleep);
     async_return(f.success && msg.result.status.dataReady);
+}
+async_end
+
+void CCS811::RequestUpdate()
+{
+    if (!update && UpdateRequired())
+    {
+        update = true;
+        kernel::Task::Run(this, &CCS811::Update);
+    }
+}
+
+async(CCS811::Wake)
+async_def()
+{
+    if (!wakeCount++)
+    {
+        wake.Res();
+        async_delay_ms(1);
+    }
+}
+async_end
+
+async(CCS811::Sleep)
+async_def_sync()
+{
+    ASSERT(wakeCount);
+    if (!--wakeCount)
+    {
+        wake.Set();
+    }
+}
+async_end
+
+async(CCS811::Update)
+async_def(
+    EnvData env;
+    bool wake;
+)
+{
+    while (envSet.raw != envCfg.raw)
+    {
+        if (!f.wake)
+        {
+            f.wake = true;
+            await(Wake);
+        }
+
+        f.env = envCfg;
+        if (!await(WriteRegister, Register::EnvData, f.env))
+        {
+            break;
+        }
+        envSet = f.env;
+    }
+
+    if (f.wake)
+    {
+        await(Sleep);
+    }
+
+    update = false;
 }
 async_end
 

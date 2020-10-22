@@ -56,15 +56,33 @@ public:
     //! Gets the raw data from last measurement
     uint16_t GetRaw() const { return raw; }
 
+    //! Sets environment temperature (degrees Celsius)
+    void EnvironmentTemperature(float temp) { envCfg.Temperature(temp); RequestUpdate(); }
+    //! Gets the configured environment temperature
+    float EnvironmentTemperature() const { return envCfg.Temperature(); }
+    //! Sets environment relative humidity (1 == 100%)
+    void EnvironmentHumidity(float rh) { envCfg.Humidity(rh); RequestUpdate(); }
+    //! Gets the configured environment humidity
+    float EnvironmentHumidity() const { return envCfg.Humidity(); }
+
 protected:
     const char* DebugComponent() const { return "CCS811"; }
 
 private:
     DriveMode mode = DriveMode::Idle;
     bool init = false;
+    bool update = false;
+    uint32_t wakeCount = 0;
     GPIOPin wake, reset;
     float co2 = NAN, tvoc = NAN;
+    float envHum = NAN, envTemp = NAN;
     uint16_t raw;
+
+    void RequestUpdate();
+    bool UpdateRequired() const { return envSet.raw != envCfg.raw; }
+    async(Wake);
+    async(Sleep);
+    async(Update);
 
     enum struct Register : uint8_t
     {
@@ -165,13 +183,23 @@ private:
         };
     };
 
-    struct EnvData
+    union EnvData
     {
-        //! Big endian relative humidity in 1/512% steps, [0,51200] => [0%,100%] RH
-        uint16_t humBE;
-        //! Big endian temperature in 1/512 degree steps, [0,65536) => [-25,102) deg. C
-        uint16_t tempBE;
-    };
+        uint32_t raw;
+        struct
+        {
+            //! Big endian relative humidity in 1/512% steps, [0,51200] => [0%,100%] RH
+            uint16_t humBE;
+            //! Big endian temperature in 1/512 degree steps, [0,65536) => [-25,102) deg. C
+            uint16_t tempBE;
+        };
+
+        float Temperature() const { return tempBE == 0xFFFF ? NAN : FROM_BE16(tempBE) / 512.0f - 25; }
+        void Temperature(float temp) { tempBE = TO_BE16(__USAT((temp + 25) * 512, 16)); }
+
+        float Humidity() const { return humBE == 0xFFFF ? NAN : FROM_BE16(humBE) / 512.0f; }
+        void Humidity(float rh) { humBE = TO_BE16(__USAT(rh * 51200, 16)); }
+    } envSet = { ~0u }, envCfg = { ~0u };
 
     union Result
     {
