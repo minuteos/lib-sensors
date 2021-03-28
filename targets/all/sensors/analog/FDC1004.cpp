@@ -23,13 +23,14 @@ async_def(
         async_return(false);
     }
 
+    f.value = swap16(f.value);
     if (f.value != DeviceID)
     {
         MYDBG("Unexpected ID: %04X, expected %04X", f.value, DeviceID);
         async_return(false);
     }
 
-    f.fdcConf = FDCConfig::Reset;
+    f.fdcConf = swap16(FDCConfig::Reset);
     if (!await(WriteRegister, Register::FDC_CONF, f.fdcConf))
     {
         async_return(false);
@@ -43,7 +44,7 @@ async_def(
             async_return(false);
         }
 
-        if (!(f.fdcConf & FDCConfig::Reset))
+        if (!(swap16(f.fdcConf) & FDCConfig::Reset))
         {
             break;
         }
@@ -58,11 +59,14 @@ async_def(
 async_end
 
 async(FDC1004::Configure, unsigned channel, uint16_t cfg)
-async_def()
+async_def(
+    uint16_t cfg;
+)
 {
     ASSERT(channel < countof(value));
 
-    if (!await(WriteRegister, (uint8_t)Register::CONF_MEAS1 + channel, cfg))
+    f.cfg = swap16(cfg);
+    if (!await(WriteRegister, (uint8_t)Register::CONF_MEAS1 + channel, f.cfg))
     {
         async_return(false);
     }
@@ -73,19 +77,26 @@ async_def()
 async_end
 
 async(FDC1004::SetCalibration, unsigned input, OffsetAndGain arg)
-async_def()
+async_def(
+    uint16_t offset, gain;
+)
 {
+    f.offset = swap16(arg.offset);
+    f.gain = swap16(arg.gain);
     async_return(
-        await(WriteRegister, (uint8_t)Register::OFFSET_CAL_CIN1 + input, arg.offset) &&
-        await(WriteRegister, (uint8_t)Register::GAIN_CAL_CIN1 + input, arg.gain)
+        await(WriteRegister, (uint8_t)Register::OFFSET_CAL_CIN1 + input, f.offset) &&
+        await(WriteRegister, (uint8_t)Register::GAIN_CAL_CIN1 + input, f.gain)
     );
 }
 async_end
 
 async(FDC1004::Start, FDCConfig config)
-async_def()
+async_def(
+    FDCConfig config;
+)
 {
-    async_return(await(WriteRegister, Register::FDC_CONF, config));
+    f.config = swap16(config);
+    async_return(await(WriteRegister, Register::FDC_CONF, f.config));
 }
 async_end
 
@@ -103,9 +114,10 @@ async_def(
         {
             async_return(false);
         }
+        f.config = swap16(f.config);
         if (!!(f.config & FDCConfig::DoneMask))
         {
-            async_return(unsigned(f.config & FDCConfig::DoneMask) >> FDCConfigDoneOffset);
+            async_return(RevMask(unsigned(f.config & FDCConfig::DoneMask) >> FDCConfigDoneOffset));
         }
         if (!(f.config & FDCConfig::EnableMask))
         {
@@ -124,7 +136,7 @@ async_def(
     union
     {
         struct { uint16_t msbBE, lsbBE; };
-        uint32_t valueBE;
+        int32_t valueBE;
     };
 )
 {
@@ -135,9 +147,9 @@ async_def(
             if (GETBIT(f.updated, f.i))
             {
                 if (await(ReadRegister, unsigned(Register::MEAS1_MSB) + 2 * f.i, f.msbBE) &&
-                    await(ReadRegister, unsigned(Register::MEAS1_MSB) + 2 * f.i, f.lsbBE))
+                    await(ReadRegister, unsigned(Register::MEAS1_LSB) + 2 * f.i, f.lsbBE))
                 {
-                    value[f.i] = TO_LE32(f.valueBE) * 1.0f/(1<<19);
+                    value[f.i] = FROM_BE32(f.valueBE) * 1.0f/(1<<27);
                 }
                 else
                 {

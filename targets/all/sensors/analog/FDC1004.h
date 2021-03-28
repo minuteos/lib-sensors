@@ -46,9 +46,9 @@ public:
     //! Śets the calibration values for the specified input
     async(SetCalibration, Input input, float offset = 0, float gain = 1) { return async_forward(SetCalibration, unsigned(input), OffsetAndGain(ConvertOffset(offset), ConvertGain(gain))); }
     //! Starts single measurements for the specified channel at the specified rate
-    async(StartSingle, Rate rate = Rate100Sps, unsigned index = 0) { return async_forward(Start, FDCConfig(rate | BIT(int(FDCConfigEnableOffset) + index))); }
+    async(StartSingle, Rate rate = Rate100Sps, unsigned index = 0) { return async_forward(Start, FDCConfig(rate | BIT(int(FDCConfigEnableOffset) + ChannelCount - 1 - index))); }
     //! Starts repeated measurements at the specified rate
-    async(StartRepeat, Rate rate = Rate100Sps, unsigned mask = 0) { return async_forward(Start, FDCConfig::Repeat | FDCConfig(rate | (mask << FDCConfigEnableOffset))); }
+    async(StartRepeat, Rate rate = Rate100Sps, unsigned mask = 1) { return async_forward(Start, FDCConfig::Repeat | FDCConfig(rate | (RevMask(mask) << FDCConfigEnableOffset))); }
     //! Stops repeated measurements
     async(Stop);
     //! Waits until at least one measurement is completed or the specified timeout elapses
@@ -103,6 +103,8 @@ private:
         ManufacturerID = 0x5449,    //< Texas Instruments
         Address = 0x50,             //< Fixed device address
 
+        ChannelCount = 4,
+
         ChannelConfigPositiveOffset = 13,
         ChannelConfigNegativeOffset = 10,
         ChannelConfigCAPDACOffset = 5,
@@ -143,10 +145,13 @@ private:
     static constexpr uint16_t ConvertCAPDAC(float val) { return std::min(unsigned(val * (float)(1.0 / 3.125)), MASK(5)) << ChannelConfigCAPDACOffset; }
     static constexpr uint16_t ConvertOffset(float val) { return std::min(std::max(signed(val * (float)BIT(11)), -32768), 32767); }
     static constexpr uint16_t ConvertGain(float val) { return std::min(unsigned(val * (float)BIT(14)), MASK(16)); }
+    static ALWAYS_INLINE unsigned RevMask(unsigned mask) { return __RBIT(mask) >> 28; }
 
     bool init = false;
     uint8_t configuredChannels = 0;
-    float value[4] = { NAN, NAN, NAN, NAN };
+    float value[ChannelCount] = { NAN, NAN, NAN, NAN };
+
+    template<typename T> static constexpr T swap16(T val) { return (T)FROM_BE16((uint16_t)val); }
 };
 
 DEFINE_FLAG_ENUM(FDC1004::FDCConfig);
