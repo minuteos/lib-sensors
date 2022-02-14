@@ -75,7 +75,6 @@ private:
     uint32_t wakeCount = 0;
     GPIOPin wake, reset;
     float co2 = NAN, tvoc = NAN;
-    float envHum = NAN, envTemp = NAN;
     uint16_t raw;
 
     void RequestUpdate();
