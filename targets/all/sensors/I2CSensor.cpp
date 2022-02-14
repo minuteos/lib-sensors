@@ -23,7 +23,8 @@ async_def()
         async_return(false);
     }
 
-    size_t len = await(i2c.Read, address, Buffer(buf, arg.length), false, true);
+    size_t len;
+    len = await(i2c.Read, address, Buffer(buf, arg.length), false, true);
     if (len != arg.length)
     {
         MYDBG("Failed to read register %02X value, error at %d/%d", arg.reg, len, arg.length);
@@ -45,7 +46,8 @@ async_def()
 
     if (arg.length)
     {
-        size_t len = await(i2c.Write, Span(buf, arg.length), true);
+        size_t len;
+        len = await(i2c.Write, Span(buf, arg.length), true);
         if (len != arg.length)
         {
             MYDBG("Failed to write register %02X value, error at %d/%d", arg.reg, len, arg.length);

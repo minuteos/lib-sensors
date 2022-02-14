@@ -195,10 +195,17 @@ private:
         };
 
         float Temperature() const { return tempBE == 0xFFFF ? NAN : FROM_BE16(tempBE) / 512.0f - 25; }
-        void Temperature(float temp) { tempBE = TO_BE16(__USAT((temp + 25) * 512, 16)); }
+        void Temperature(float temp) { tempBE = TO_BE16(clamp16((temp + 25) * 512)); }
 
         float Humidity() const { return humBE == 0xFFFF ? NAN : FROM_BE16(humBE) / 512.0f; }
-        void Humidity(float rh) { humBE = TO_BE16(__USAT(rh * 51200, 16)); }
+        void Humidity(float rh) { humBE = TO_BE16(clamp16(rh * 51200)); }
+
+private:
+#ifdef __USAT
+        ALWAYS_INLINE uint16_t clamp16(int value) { return __USAT(value, 16); }
+#else
+        ALWAYS_INLINE uint16_t clamp16(int value) { return value < 0 ? 0 : value > 0xFFFF ? 0xFFFF : value; }
+#endif
     } envSet = { ~0u }, envCfg = { ~0u };
 
     union Result

@@ -29,7 +29,7 @@ protected:
 
 #if TRACE
     virtual const char* DebugComponent() const final override { return OwnerDebugComponent(); }
-    virtual void _DebugHeader() const { I2CSensor::_DebugHeader(); }
+    virtual void _DebugHeader() const final override { I2CSensor::_DebugHeader(); }
 #endif
 
     friend class Sensor;

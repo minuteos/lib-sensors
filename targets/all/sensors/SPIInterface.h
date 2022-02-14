@@ -29,7 +29,7 @@ protected:
 
 #if TRACE
     virtual const char* DebugComponent() const final override { return OwnerDebugComponent(); }
-    virtual void _DebugHeader() const { SPISensor::_DebugHeader(); }
+    virtual void _DebugHeader() const final override { SPISensor::_DebugHeader(); }
 #endif
 
     friend class Sensor;

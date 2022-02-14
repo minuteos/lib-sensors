@@ -35,7 +35,7 @@ public:
     //! Indicates if the low power measurement mode is enabled
     bool LowPower() const { return lowPower; }
     //! Enables or disables the low power measurement mode
-    void LowPower(bool value) { this->lowPower = lowPower; }
+    void LowPower(bool value) { this->lowPower = value; }
 
     //! Gets the last measured temperature. NaN when there is no measurement available.
     float GetTemperature() const { return temp; }

@@ -145,7 +145,11 @@ private:
     static constexpr uint16_t ConvertCAPDAC(float val) { return std::min(unsigned(val * (float)(1.0 / 3.125)), MASK(5)) << ChannelConfigCAPDACOffset; }
     static constexpr uint16_t ConvertOffset(float val) { return std::min(std::max(signed(val * (float)BIT(11)), -32768), 32767); }
     static constexpr uint16_t ConvertGain(float val) { return std::min(unsigned(val * (float)BIT(14)), MASK(16)); }
+#ifdef __RBIT
     static ALWAYS_INLINE unsigned RevMask(unsigned mask) { return __RBIT(mask) >> 28; }
+#else
+    static ALWAYS_INLINE unsigned RevMask(unsigned mask) { return (mask & 1) << 3 | (mask & 2) << 1 | (mask & 4) >> 1 | (mask & 8) >> 3; }
+#endif
 
     bool init = false;
     uint8_t configuredChannels = 0;

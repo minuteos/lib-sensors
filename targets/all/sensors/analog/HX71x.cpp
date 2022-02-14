@@ -13,6 +13,10 @@
 namespace sensors::analog
 {
 
+#ifndef __NOP
+#define __NOP() asm volatile ("nop")
+#endif
+
 static ALWAYS_INLINE void clkdelay()
 {
     // TODO: may need to be adjusted for other CPU frequencies
@@ -50,8 +54,9 @@ async_def()
     {
         // power on, but make sure it is really powered down if it was done just a while ago
         MYDBG("waking up");
-        mono_signed_t powerDownTicks = MonoFromMicroseconds(60) + 1;
-        mono_signed_t pdRemain = powerDownAt + powerDownTicks - MONO_CLOCKS;
+        mono_signed_t powerDownTicks, pdRemain;
+        powerDownTicks = MonoFromMicroseconds(60) + 1;
+        pdRemain = powerDownAt + powerDownTicks - MONO_CLOCKS;
         if (pdRemain > 0 && pdRemain < powerDownTicks)
         {
             async_delay_until(powerDownTicks);
