@@ -79,7 +79,7 @@ public:
     //! Triggeres a single measurement
     async(Trigger);
     //! Retrieves the last measurement result, return value indicates if the measured values have changed in the meantime
-    async(Measure);
+    async(Measure, Timeout timeout = Timeout());
 
     //! Gets the last measured cold junction temperature in degrees celsius; NaN if not available
     float GetColdTemperature() const { return tempCold; }

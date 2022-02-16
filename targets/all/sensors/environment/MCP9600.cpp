@@ -123,7 +123,7 @@ async_def()
 }
 async_end
 
-async(MCP9600::Measure)
+async(MCP9600::Measure, Timeout timeout)
 async_def(
     PACKED_UNALIGNED_STRUCT
     {
@@ -148,13 +148,19 @@ async_def(
         SensorConfig scfg;
         DeviceConfig dcfg;
     } status;
+    Timeout timeout;
+#if MCP9600_TRACE
+    int retry;
+#endif
 )
 {
+    f.timeout = timeout.MakeAbsolute();
+
     if (!init && !await(Init, config.sensor, config.device))
     {
         async_return(false);
     }
-
+again:
     // check if data available and if sensor hasn't been reset
     if (!await(ReadRegister, Register::Status, f.status))
     {
@@ -175,14 +181,16 @@ async_def(
         {
             MYDBG("Device config reset, expected %02X, found %02X", config.device, f.status.dcfg);
             init = false;
+            async_return(false);
         }
-        async_return(false);
+
+        goto retry;
     }
 
     if (!(f.status.update || f.status.complete))
     {
         // conversion pending
-        async_return(false);
+        goto retry;
     }
 
     // reset status
@@ -199,6 +207,7 @@ async_def(
     // read current values
     if (!await(ReadRegister, Register::HotJunction, f.data))
     {
+        init = false;
         async_return(false);
     }
 
@@ -207,6 +216,16 @@ async_def(
     raw = int32_t(FROM_BE32(f.data.adc)) >> 8;
     MYTRACE("new data: Thot=%.3q, Tcold=%.3q, ADC=%d", int(tempHot * 1000), int(tempCold * 1000), raw);
     async_return(true);
+
+retry:
+    auto t = f.timeout.Relative();
+    if (t <= 0)
+    {
+        async_return(false);
+    }
+    MYTRACE("retry %d (%d)", ++f.retry, t);
+    async_delay_ticks(std::min(mono_signed_t(MonoFromMilliseconds(10)), t));
+    goto again;
 }
 async_end
 
