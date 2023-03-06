@@ -27,7 +27,7 @@ public:
     PACKED_UNALIGNED_STRUCT Sample
     {
         uint32_t pressureLE : 24;
-        uint16_t tempLE;
+        int16_t tempLE;
 
         float Pressure() const { return FROM_LE24(pressureLE) * (1.0f / 4096); }
         float Temperature() const { return FROM_LE16(tempLE) * 0.01f; }
