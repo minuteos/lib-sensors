@@ -10,6 +10,7 @@
 
 #include <kernel/kernel.h>
 
+#include <base/Span.h>
 #include <bus/SPI.h>
 
 #include "Interface.h"
