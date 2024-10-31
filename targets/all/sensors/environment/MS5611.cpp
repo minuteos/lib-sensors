@@ -23,7 +23,7 @@ async_def(uint8_t u; uint16_t reg;)
     cfg = config;
 
     MYDBG("Initializing...");
-    if (!await(ReadRegister, Command::Reset, Buffer())) { async_return(false); }
+    if (!await(WriteRegister, Command::Reset, Span())) { async_return(false); }
 
     // wait until the module recovers from reset - there is no signal for this, it just NAKs everything
     async_delay_ms(100);
@@ -48,6 +48,7 @@ async(MS5611::Measure)
 async_def(
     unsigned i;
     uint32_t d[2];
+    Timeout t;
 )
 {
     if (!init && !await(InitImpl, cfg))
@@ -55,17 +56,21 @@ async_def(
         async_return(false);
     }
 
-    for (f.i = 0; f.i <= countof(f.d); f.i++)
+    for (f.i = 0; f.i < countof(f.d); f.i++)
     {
-        if (!await(ReadRegister, f.i == 0 ? cfg.d1 : cfg.d2, Buffer()))
+        if (!await(WriteRegister, f.i == 0 ? cfg.d1 : cfg.d2, Span()))
         {
-            MYDBG("Error while triggering D%d", f.i);
+            MYDBG("Error while triggering D%d", f.i + 1);
             async_return(false);
         }
-        async_delay_ms(10);
+
+        // use exact deadline to avoid basing on previous one
+        async_delay_until(MONO_CLOCKS + MonoTimeout(f.i == 0 ? cfg.d1 : cfg.d2));
+
         if (!await(ReadRegister, Command::Read, Buffer(&f.d[f.i], 3)))
         {
-            MYDBG("Error while reading D%d", f.i);
+            MYDBG("Error while reading D%d", f.i + 1);
+            async_return(false);
         }
     }
 

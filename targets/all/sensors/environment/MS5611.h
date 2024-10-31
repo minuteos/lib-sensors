@@ -40,8 +40,6 @@ public:
     }
 
     //! Initializes the sensor
-    async(Init, OSR oversampling) { return async_forward(InitImpl, InitConfig(oversampling, oversampling)); }
-    //! Initializes the sensor
     async(Init, OSR pressureOversampling, OSR temperatureOversampling) { return async_forward(InitImpl, InitConfig(pressureOversampling, temperatureOversampling)); }
     //! Performs a measurement cycle
     async(Measure);
@@ -76,9 +74,17 @@ private:
     };
 
     async(InitImpl, InitConfig cfg);
-    async(Trigger);
-    async(DataReady);
-    async(WaitForData, Timeout timeout);
+    mono_t MonoTimeout(uint8_t cmd)
+    {
+        unsigned osr = (cmd & 0xF) >> 1;
+        return LOOKUP_TABLE(uint16_t,
+            MonoFromMilliseconds(0.6),
+            MonoFromMilliseconds(1.17),
+            MonoFromMilliseconds(2.28),
+            MonoFromMilliseconds(4.54),
+            MonoFromMilliseconds(9.04),
+        )[osr];
+    }
 
     bool init = false;
     InitConfig cfg;
@@ -89,8 +95,6 @@ private:
         struct { uint16_t c1, c2, c3, c4, c5, c6; };
     };
     float pressure = NAN, temperature = NAN;
-    float pressureI = NAN, temperatureI = NAN;
-
 };
 
 }
