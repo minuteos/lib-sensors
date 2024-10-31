@@ -42,6 +42,12 @@ protected:
     template<typename... Args> void MYDBG(Args...) {}
 #endif
 
+#if TRACE && SENSOR_TRACE
+    template<typename... Args> void MYTRACE(Args... args) { MYDBG(args...); }
+#else
+    template<typename... Args> void MYTRACE(Args...) {}
+#endif
+
 private:
     bus::SPI spi;
     bus::SPI::ChipSelect cs;

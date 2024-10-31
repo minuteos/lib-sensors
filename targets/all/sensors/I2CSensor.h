@@ -53,6 +53,12 @@ protected:
     template<typename... Args> void MYDBG(Args...) {}
 #endif
 
+#if TRACE && SENSOR_TRACE
+    template<typename... Args> void MYTRACE(Args... args) { MYDBG(args...); }
+#else
+    template<typename... Args> void MYTRACE(Args...) {}
+#endif
+
 private:
     bus::I2C i2c;
     uint8_t address;

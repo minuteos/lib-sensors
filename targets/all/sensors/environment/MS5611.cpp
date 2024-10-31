@@ -112,6 +112,8 @@ async_def(
     float sens = senst1 + tcs * dT - sens2;
     pressure = (d1 * sens - off) * 1e-2f;
 
+    MYTRACE("new data: P=%.3q T=%.3q", int(pressure * 1000), int(temperature * 1000));
+
     async_return(true);
 }
 async_end

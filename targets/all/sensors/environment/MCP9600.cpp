@@ -8,14 +8,6 @@
 
 #include "MCP9600.h"
 
-//#define MCP9600_TRACE   1
-
-#if MCP9600_TRACE
-#define MYTRACE(...) MYDBG(__VA_ARGS__)
-#else
-#define MYTRACE(...)
-#endif
-
 namespace sensors::environment
 {
 
@@ -149,7 +141,7 @@ async_def(
         DeviceConfig dcfg;
     } status;
     Timeout timeout;
-#if MCP9600_TRACE
+#if TRACE && SENSOR_TRACE
     int retry;
 #endif
 )
@@ -223,7 +215,9 @@ retry:
     {
         async_return(false);
     }
+#if TRACE && SENSOR_TRACE
     MYTRACE("retry %d (%d)", ++f.retry, t);
+#endif
     async_delay_ticks(std::min(mono_signed_t(MonoFromMilliseconds(10)), t));
     goto again;
 }
