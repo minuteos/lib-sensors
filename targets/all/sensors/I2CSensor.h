@@ -21,33 +21,31 @@ class I2CSensor
 {
 protected:
     I2CSensor(bus::I2C i2c, uint8_t address)
-        : i2c(i2c), address(address)
+        : dev(i2c.Master(address))
     {
     }
 
-    //! Starts or restarts an I2C read transaction with optional stop
-    async(Read, Buffer buf, bool start, bool stop) { return async_forward(i2c.Read, address, buf, start, stop); }
-    //! Continues a running I2C read transaction with optional stop
-    async(Read, Buffer buf, bool stop) { return async_forward(i2c.Read, buf, stop); }
-    //! Starts or restarts an I2C write transaction with optional stop
-    async(Write, Span buf, bool start, bool stop) { return async_forward(i2c.Write, address, buf, start, stop); }
-    //! Continues a running I2C write transaction with optional stop
-    async(Write, Span buf, bool stop) { return async_forward(i2c.Write, buf, stop); }
+    //! Indicates the next operation on the device
+    using Next = bus::I2C::Next;
+
+    async(Read, Buffer data, Next next = Next::Stop) { return async_forward(dev.Read, data, next); }
+    async(Write, Span data, Next next = Next::Stop) { return async_forward(dev.Write, data, next); }
     //! Reads data from consecutive registers (register address is written before changing direction)
     template<typename T> async(ReadRegister, T reg, Buffer buf, bool allowFail = false) { return async_forward(ReadRegisterImpl, RegAndLength(uint8_t(reg), buf.Length(), allowFail), buf.Pointer()); }
     //! Writes data to consecutive registers (register address is written as the first byte)
     template<typename T> async(WriteRegister, T reg, Span buf, bool allowFail = false) { return async_forward(WriteRegisterImpl, RegAndLength(uint8_t(reg), buf.Length(), allowFail), buf.Pointer()); }
 
-    uint8_t BusAddress() const { return address; }
+    uint8_t BusAddress() const { return dev.Address(); }
+    unsigned Transferred() const { return dev.Transferred(); }
 
     //! Gets the current bus frequency
-    uint32_t OutputFrequency() const { return i2c.OutputFrequency(); }
+    uint32_t OutputFrequency() const { return dev.Bus().OutputFrequency(); }
     //! Sets the current bus frequency
-    void OutputFrequency(uint32_t freq) { i2c.OutputFrequency(freq); }
+    void OutputFrequency(uint32_t freq) { dev.Bus().OutputFrequency(freq); }
 
 #if TRACE
     virtual const char* DebugComponent() const { return "I2CSensor"; }
-    void _DebugHeader() const { DBG("%s[%02X]: ", DebugComponent(), address); }
+    void _DebugHeader() const { DBG("%s[%02X]: ", DebugComponent(), BusAddress()); }
     template<typename... Args> void MYDBG(Args... args) { _DebugHeader(); _DBG(args...); _DBGCHAR('\n'); }
 #else
     template<typename... Args> void MYDBG(Args...) {}
@@ -60,8 +58,7 @@ protected:
 #endif
 
 private:
-    bus::I2C i2c;
-    uint8_t address;
+    bus::I2C::Device dev;
 
     typedef Interface::RegAndLength RegAndLength;
 

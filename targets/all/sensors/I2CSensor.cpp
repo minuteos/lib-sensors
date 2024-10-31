@@ -12,9 +12,13 @@ namespace sensors
 {
 
 async(I2CSensor::ReadRegisterImpl, RegAndLength arg, void* buf)
-async_def()
+async_def(
+    uint8_t reg;
+)
 {
-    if (await(i2c.Write, address, arg.reg, true, false) != 1)
+    // we don't want to be passing a stack value to Write
+    f.reg = arg.reg;
+    if (!await(Write, f.reg, arg.length ? Next::Restart : Next::Stop))
     {
         if (!arg.allowFail)
         {
@@ -23,12 +27,13 @@ async_def()
         async_return(false);
     }
 
-    size_t len;
-    len = await(i2c.Read, address, Buffer(buf, arg.length), false, true);
-    if (len != arg.length)
+    if (arg.length)
     {
-        MYDBG("Failed to read register %02X value, error at %d/%d", arg.reg, len, arg.length);
-        async_return(false);
+        if (!await(Read, Buffer(buf, arg.length)))
+        {
+            MYDBG("Failed to read register %02X value, error at %d/%d", arg.reg, Transferred(), arg.length);
+            async_return(false);
+        }
     }
 
     async_return(true);
@@ -36,9 +41,13 @@ async_def()
 async_end
 
 async(I2CSensor::WriteRegisterImpl, RegAndLength arg, const void* buf)
-async_def()
+async_def(
+    uint8_t reg;
+)
 {
-    if (await(i2c.Write, address, arg.reg, true, arg.length == 0) != 1)
+    // we don't want to be passing a stack value to Write
+    f.reg = arg.reg;
+    if (!await(Write, f.reg, arg.length ? Next::Continue : Next::Stop))
     {
         MYDBG("Failed to write register %02X address", arg.reg);
         async_return(false);
@@ -46,11 +55,9 @@ async_def()
 
     if (arg.length)
     {
-        size_t len;
-        len = await(i2c.Write, Span(buf, arg.length), true);
-        if (len != arg.length)
+        if (!await(Write, Span(buf, arg.length)))
         {
-            MYDBG("Failed to write register %02X value, error at %d/%d", arg.reg, len, arg.length);
+            MYDBG("Failed to write register %02X value, error at %d/%d", arg.reg, Transferred(), arg.length);
             async_return(false);
         }
     }

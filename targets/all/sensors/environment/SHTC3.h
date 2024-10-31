@@ -61,7 +61,7 @@ private:
         MeasureLowPower = 0x6458,
     };
 
-	async(WriteCommand, Command cmd, bool stop = true);
+	async(WriteCommand, Command cmd, Next next = Next::Stop);
 };
 
 }
