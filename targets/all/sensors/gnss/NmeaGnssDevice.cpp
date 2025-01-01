@@ -130,12 +130,69 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
     switch (ID(command))
     {
         case ID("GSV"): // satellites in view
+        {
+            int msgCnt = ReadNum(message);
+            int msgNum = ReadNum(message);
+            uint8_t numSat = ReadNum(message);
+            int numTrack = 0;
+            uint8_t sigId = ReadNum(message);
+            while (message)
+            {
+                // this is actually a satellite record
+                // we're only interested on whether it's being tracked
+                // sigId was really svId, ignore it
+                ReadDecimal(message);   // elevation
+                ReadDecimal(message);   // azimuth
+                if (ReadDecimal(message).divisor)
+                {
+                    numTrack++;
+                }
+                sigId = ReadNum(message);   // next candidate for signalId
+            }
+            if (msgNum > 1 && (
+                msgNum != sdataPendLast + 1 ||
+                msgCnt != sdataPendTotal ||
+                sigId != sdataPending.signalId ||
+                talker[1] != sdataPending.talkerId))
+            {
+                MYDBG("GSV out of order, expected %c:%d %d %d/%d, received %c:%d %d %d/%d",
+                    sdataPending.talkerId, sdataPending.signalId, sdataPending.visSat, sdataPendLast + 1, sdataPendTotal,
+                    talker[1], sigId, numSat, msgNum, msgCnt);
+                break;
+            }
+
+            if (msgNum == 1)
+            {
+                if (sdataPending.talkerId)
+                {
+                    MYDBG("Dropping incomplete GSV data %c:%d %d %d/%d",
+                        sdataPending.talkerId, sdataPending.signalId, sdataPending.visSat, sdataPendLast + 1, sdataPendTotal);
+                }
+                sdataPending = {
+                    .talkerId = talker[1], .signalId = sigId,
+                    .trkSat = 0, .visSat = numSat,
+                };
+            }
+            sdataPending.stamp = MONO_CLOCKS;
+            sdataPending.trkSat += numTrack;
+            if (msgNum == msgCnt)
+            {
+                SaveSatelliteData(sdataPending);
+                sdataPending = {};
+                sdataPendLast = sdataPendTotal = 0;
+            }
+            else
+            {
+                sdataPendLast = msgNum;
+                sdataPendTotal = msgCnt;
+            }
             return;
+        }
     }
 
     // only unknown messages get here
 #if TRACE && !GNSS_TRACE
-    DBGC("GNSS", "<? ");
+    DBGC("GNSS", "<? %b%b,", Span(talker, sizeof(talker)), Span(command, sizeof(command)));
     for (auto s: message.Spans()) { _DBG("%b", s); }
     _DBGCHAR('\n');
 #endif
@@ -149,6 +206,39 @@ void NmeaGnssDevice::Update(const LocationData& data)
         this->data = data;
         kernel::FireEvent(data);
     }
+}
+
+void NmeaGnssDevice::SaveSatelliteData(const SatelliteData& data)
+{
+    SatelliteData* oldest = NULL;
+    SatelliteData* match = NULL;
+    SatelliteData* free = NULL;
+    for (auto& sd: sdata)
+    {
+        if (!free && !sd.talkerId) { free = &sd; }
+        if (!match && sd.talkerId == data.talkerId && sd.signalId == data.signalId) { match = &sd; }
+        if (!oldest || (data.stamp - sd.stamp > data.stamp - oldest->stamp)) { oldest = &sd; }
+    }
+    if (!match && !free)
+    {
+        MYDBG("Dropping oldest GSV data %c:%d %d/%d",
+            oldest->talkerId, oldest->signalId, oldest->trkSat, oldest->visSat);
+    }
+    *(match ? match : free ? free : oldest) = data;
+    kernel::FireEvent(data);
+
+    // update the number of tracked sats in LocationData
+    auto ld = this->data;
+    ld.trkSat = ld.visSat = 0;
+    for (auto& sd: sdata)
+    {
+        if (sd.talkerId)
+        {
+            ld.trkSat += sd.trkSat;
+            ld.visSat += sd.visSat;
+        }
+    }
+    Update(ld);
 }
 
 }

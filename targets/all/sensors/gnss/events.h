@@ -27,12 +27,20 @@ struct LocationData
     float groundSpeedKnots, groundSpeedKm;
     float course, magneticCourse;
     float magVariance;
-    int quality, numSat;
+    int quality, numSat, trkSat, visSat;
     float hdop, pdop, vdop;
     float altitude, separation;
     int diffAge, diffStation;
     char status, posMode, navStatus, opMode;
     uint8_t navMode, systemId;
+};
+
+struct SatelliteData
+{
+    mono_t stamp;
+    char talkerId;
+    uint8_t signalId;
+    uint8_t trkSat, visSat;
 };
 
 }

@@ -30,9 +30,17 @@ protected:
     virtual void OnMessage(io::Pipe::Iterator& message);
 
 private:
+    enum {
+        MaxGsvGroups = 10,
+    };
+
     LocationData data = {};
+    SatelliteData sdata[MaxGsvGroups];
+    SatelliteData sdataPending = {};
+    uint8_t sdataPendLast, sdataPendTotal;
 
     void Update(const LocationData& data);
+    void SaveSatelliteData(const SatelliteData& data);
 };
 
 }
