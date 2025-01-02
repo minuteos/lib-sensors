@@ -27,7 +27,7 @@ struct LocationData
     float groundSpeedKnots, groundSpeedKm;
     float course, magneticCourse;
     float magVariance;
-    int quality, numSat, trkSat, visSat;
+    int quality, numSat, lockSat, trkSat, visSat, knownSat;
     float hdop, pdop, vdop;
     float altitude, separation;
     int diffAge, diffStation;
@@ -38,9 +38,11 @@ struct LocationData
 struct SatelliteData
 {
     mono_t stamp;
-    char talkerId;
-    uint8_t signalId;
-    uint8_t trkSat, visSat;
+    uint32_t groupId;   // 0x00ttttss where tttt = 16-bit talker-id and ss = 8-bit signal-id
+    uint8_t lockSat, visSat, knownSat;
+
+    constexpr uint8_t SignalId() const { return groupId; }
+    constexpr uint16_t TalkerId() const { return groupId >> 8; }
 };
 
 }

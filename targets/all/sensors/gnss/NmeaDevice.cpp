@@ -150,10 +150,12 @@ Packed<Decimal> NmeaDevice::ReadDecimalImpl(io::Pipe::Iterator& message, unsigne
 
     int n = 0;
     int div = 0;
-    bool error = false;
+    bool error = true;
     while (char c = message.Read(0))
     {
         if (c == ',') { break; }
+
+        error = false;
 
         if (c == '.')
         {

@@ -23,9 +23,12 @@ namespace sensors::gnss
 
 void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
 {
+#if TRACE
+    auto inmsg = message;
+#endif
 #if TRACE && GNSS_TRACE
     DBGC("GNSS", "<< ");
-    for (auto s: message.Spans()) { _DBG("%b", s); }
+    for (auto s: inmsg.Spans()) { _DBG("%b", s); }
     _DBGCHAR('\n');
 #endif
     char talker[2], command[3];
@@ -134,47 +137,56 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
             int msgCnt = ReadNum(message);
             int msgNum = ReadNum(message);
             uint8_t numSat = ReadNum(message);
-            int numTrack = 0;
-            uint8_t sigId = ReadNum(message);
-            while (message)
+            uint8_t numLock = 0, numVis = 0;
+            int nRec = msgNum == msgCnt ? numSat % 4 : 4;
+            for (int i = 0; i < nRec; i++)
             {
-                // this is actually a satellite record
-                // we're only interested on whether it's being tracked
-                // sigId was really svId, ignore it
-                ReadDecimal(message);   // elevation
-                ReadDecimal(message);   // azimuth
-                if (ReadDecimal(message).divisor)
+                ReadNum(message);          // satId, don't care
+                // consider a satellite locked if its position is known
+                bool lock =
+                    !!ReadDecimal(message).divisor &    // elevation
+                    !!ReadDecimal(message).divisor;     // azimuth;
+                // consider a satellite visible if it has a signal strength
+                bool vis =
+                    !!ReadDecimal(message).divisor;     // signal strength
+
+                if (vis)
                 {
-                    numTrack++;
+                    if (lock) { numLock++; }
+                    numVis++;
                 }
-                sigId = ReadNum(message);   // next candidate for signalId
             }
+
+            uint8_t sigId = ReadNum(message);   // signal Id (0 == unknown, i.e. no tracking)
+            uint32_t groupId = talker[0] << 16 | talker[1] << 8 | sigId;
+
             if (msgNum > 1 && (
                 msgNum != sdataPendLast + 1 ||
                 msgCnt != sdataPendTotal ||
-                sigId != sdataPending.signalId ||
-                talker[1] != sdataPending.talkerId))
+                groupId != sdataPending.groupId ||
+                numSat != sdataPending.knownSat))
             {
-                MYDBG("GSV out of order, expected %c:%d %d %d/%d, received %c:%d %d %d/%d",
-                    sdataPending.talkerId, sdataPending.signalId, sdataPending.visSat, sdataPendLast + 1, sdataPendTotal,
-                    talker[1], sigId, numSat, msgNum, msgCnt);
+                MYDBG("GSV out of order, expected %X %d %d/%d, received %X %d %d/%d",
+                    sdataPending.groupId, sdataPending.knownSat, sdataPendLast + 1, sdataPendTotal,
+                    groupId, numSat, msgNum, msgCnt);
                 break;
             }
 
             if (msgNum == 1)
             {
-                if (sdataPending.talkerId)
+                if (sdataPending.groupId)
                 {
-                    MYDBG("Dropping incomplete GSV data %c:%d %d %d/%d",
-                        sdataPending.talkerId, sdataPending.signalId, sdataPending.visSat, sdataPendLast + 1, sdataPendTotal);
+                    MYDBG("Dropping incomplete GSV data %X %d %d/%d",
+                        sdataPending.groupId, sdataPending.knownSat, sdataPendLast + 1, sdataPendTotal);
                 }
                 sdataPending = {
-                    .talkerId = talker[1], .signalId = sigId,
-                    .trkSat = 0, .visSat = numSat,
+                    .groupId = groupId,
+                    .lockSat = 0, .visSat = 0, .knownSat = numSat
                 };
             }
             sdataPending.stamp = MONO_CLOCKS;
-            sdataPending.trkSat += numTrack;
+            sdataPending.lockSat += numLock;
+            sdataPending.visSat += numVis;
             if (msgNum == msgCnt)
             {
                 SaveSatelliteData(sdataPending);
@@ -192,8 +204,8 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
 
     // only unknown messages get here
 #if TRACE && !GNSS_TRACE
-    DBGC("GNSS", "<? %b%b,", Span(talker, sizeof(talker)), Span(command, sizeof(command)));
-    for (auto s: message.Spans()) { _DBG("%b", s); }
+    DBGC("GNSS", "<? ");
+    for (auto s: inmsg.Spans()) { _DBG("%b", s); }
     _DBGCHAR('\n');
 #endif
 
@@ -215,27 +227,33 @@ void NmeaGnssDevice::SaveSatelliteData(const SatelliteData& data)
     SatelliteData* free = NULL;
     for (auto& sd: sdata)
     {
-        if (!free && !sd.talkerId) { free = &sd; }
-        if (!match && sd.talkerId == data.talkerId && sd.signalId == data.signalId) { match = &sd; }
-        if (!oldest || (data.stamp - sd.stamp > data.stamp - oldest->stamp)) { oldest = &sd; }
+        if (!free && !sd.groupId) { free = &sd; }
+        if (!match && sd.groupId == data.groupId) { match = &sd; }
+        if (!oldest || data.stamp - sd.stamp > data.stamp - oldest->stamp) { oldest = &sd; }
     }
+
     if (!match && !free)
     {
-        MYDBG("Dropping oldest GSV data %c:%d %d/%d",
-            oldest->talkerId, oldest->signalId, oldest->trkSat, oldest->visSat);
+        MYDBG("Dropping oldest GSV data %X %d/%d/%d",
+            oldest->groupId, oldest->lockSat, oldest->visSat, oldest->knownSat);
     }
     *(match ? match : free ? free : oldest) = data;
     kernel::FireEvent(data);
 
     // update the number of tracked sats in LocationData
     auto ld = this->data;
-    ld.trkSat = ld.visSat = 0;
+    ld.lockSat = ld.trkSat = ld.visSat = ld.knownSat = 0;
     for (auto& sd: sdata)
     {
-        if (sd.talkerId)
+        if (sd.groupId)
         {
-            ld.trkSat += sd.trkSat;
+            ld.lockSat += sd.lockSat;
             ld.visSat += sd.visSat;
+            ld.knownSat += sd.knownSat;
+            if (sd.SignalId())
+            {
+                ld.trkSat += sd.visSat;
+            }
         }
     }
     Update(ld);
