@@ -39,6 +39,12 @@ struct Time
     Time() {}
     ALWAYS_INLINE Time(Decimal dec)
     {
+        if (!dec.divisor)
+        {
+            h = m = s = hs = 0;
+            return;
+        }
+
         hs = dec.value % dec.divisor * 100 / dec.divisor;
         dec.value /= dec.divisor;
         s = dec.value % 100;
