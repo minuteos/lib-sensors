@@ -9,6 +9,7 @@
 #pragma once
 
 #include <sensors/I2CSensor.h>
+#include <math/Vector3.h>
 
 namespace sensors::position
 {
@@ -63,6 +64,59 @@ public:
         Odr1p6Hz_AccelLpm = 0b1011,
     };
 
+    //! Temperature output data rate
+    enum struct TempOdr
+    {
+        Disabled = 0,
+        Odr1p6Hz = 0b01,
+        Odr12p5Hz = 0b10,
+        Odr52Hz = 0b11,
+    };
+
+    //! Timestamp output rate
+    enum struct TsRate
+    {
+        Disabled,
+        Every1,
+        Every8,
+        Every32,
+    };
+
+    //! Fifo mode
+    enum struct FifoMode
+    {
+        Bypass,
+        Fifo,
+        ContinuousToFifo = 3,
+        BypassToContinuous,
+        Continuous = 6,
+        BypassToFifo,
+    };
+
+    //! Kind of data loaded from the FIFO
+    enum struct FifoTag
+    {
+        NoData = 0,
+        GyroNc = 1,
+        AccelNc = 2,
+        Temp = 3,
+        Timestamp = 4,
+        CfgChange = 5,
+        AccelNcT2 = 6,
+        AccelNcT1 = 7,
+        Accel2C = 8,
+        Accel3C = 9,
+        GyroNcT2 = 0xA,
+        GyroNcT1 = 0xB,
+        Gyro2C = 0xC,
+        Gyro3C = 0xD,
+        Slave0 = 0xE,
+        Slave1 = 0xF,
+        Slave2 = 0x10,
+        Slave3 = 0x11,
+        StepCount = 0x12,
+        Nack = 0x19,
+    };
 
     //! Acceleration in X direction as a multiply of g (standard gravity)
     float GetAccelerationX() const { return ax; }
@@ -70,12 +124,16 @@ public:
     float GetAccelerationY() const { return ay; }
     //! Acceleration in Z direction as a multiply of g (standard gravity)
     float GetAccelerationZ() const { return az; }
+    //! Acceleration as a three-dimensional vector with elements as a multiply of g (standard gravity)
+    Vector3 GetAcceleration() const { return { ax, ay, az }; }
     //! Angular velocity around X (pitch) axis in dps (degrees per second)
     float GetAngularX() const { return gx; }
     //! Angular velocity around Y (roll) axis in dps (degrees per second)
     float GetAngularY() const { return gy; }
     //! Angular velocity around Z (yaw) axis in dps (degrees per second)
     float GetAngularZ() const { return gz; }
+    //! Angular velocity as a three-dimensional vector with elements in dps (degrees per second)
+    Vector3 GetAngular() const { return { gx, gy, gz }; }
 
     //! Get full-scale range in g (standard gravity)
     float GetAccelerationScale() const { return cfgDesired.GetAccelerationScale(); }
@@ -88,6 +146,15 @@ public:
     void Configure(AccelFs fs) { cfgDesired.accelFs = fs; }
     //! Configures the accelerometer full-scale range
     void Configure(GyroFs fs) { cfgDesired.gyroFs = fs; }
+    //! Configures the accelerometer full-scale range
+    void Configure(FifoMode mode, Odr accel, Odr gyro, TempOdr temp = TempOdr::Disabled, TsRate ts = TsRate::Disabled)
+    {
+        fifoDesired.fifoMode = mode;
+        fifoDesired.accelOdr = accel;
+        fifoDesired.gyroOdr = gyro;
+        fifoDesired.tempOdr = temp;
+        fifoDesired.tsRate = ts;
+    }
 
     //! Initializes the sensor
     async(Init);
@@ -97,6 +164,8 @@ public:
     async(Stop);
     //! Retrieves the last measurement result, return value indicates if the measured values have changed in the meantime
     async(Measure);
+    //! Reads the next entry from fifo, return value indicates the type of value read
+    async(FifoRead);
 
 protected:
     const char* DebugComponent() const { return "LSM6DSO"; }
@@ -227,7 +296,36 @@ private:
         OdrDiv800
     };
 
+    enum struct FifoNoCompressRate
+    {
+        NoCompress0,
+        NoCompress8,
+        NoCompress16,
+        NoCompress32,
+    };
+
     async(UpdateConfiguration);
+
+    struct FifoConfig
+    {
+        // FIFO_CTRL1+2
+        uint16_t watermark : 9;
+        FifoNoCompressRate compRate : 2;
+        uint8_t : 1;
+        bool odrChange : 1;
+        uint8_t : 1;
+        bool compress : 1;
+        bool stopOnWtm : 1;
+
+        // FIFO_CTRL3
+        Odr accelOdr : 4;
+        Odr gyroOdr : 4;
+
+        // FIFO_CTRL4
+        FifoMode fifoMode : 4;
+        TempOdr tempOdr : 2;
+        TsRate tsRate : 2;
+    } fifoActual, fifoDesired = {};
 
     struct Config
     {
@@ -312,6 +410,7 @@ private:
     } cfgActual, cfgDesired = { .ifInc = 1 };
 
     bool init = false;
+    uint8_t lastFifoTag = 0;
     float ax = NAN, ay = NAN, az = NAN;
     float gx = NAN, gy = NAN, gz = NAN;
     float amul, gmul;
