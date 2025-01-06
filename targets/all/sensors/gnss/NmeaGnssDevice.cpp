@@ -65,7 +65,7 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
                     data.longitude = ReadDeg(message) * (ReadChar(message) == 'W' ? -1 : 1);
                     data.groundSpeedKnots = ReadFloat(message);
                     data.course = ReadFloat(message);
-                    data.date = ReadNum(message);
+                    data.date = ReadNum(message, 10, 0);
                     data.magVariance = ReadFloat(message) * (ReadChar(message) == 'W' ? -1 : 1);
                     data.posMode = ReadChar(message);
                     data.navStatus = ReadChar(message);

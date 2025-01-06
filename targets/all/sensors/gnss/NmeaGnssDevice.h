@@ -34,7 +34,14 @@ private:
         MaxGsvGroups = 10,
     };
 
-    LocationData data = {};
+    LocationData data = {
+        .latitude = NAN, .longitude = NAN,
+        .groundSpeedKnots = NAN, .groundSpeedKm = NAN,
+        .course = NAN, .magneticCourse = NAN,
+        .magVariance = NAN,
+        .hdop = NAN, .pdop = NAN, .vdop = NAN,
+        .altitude = NAN, .separation = NAN,
+    };
     SatelliteData sdata[MaxGsvGroups];
     SatelliteData sdataPending = {};
     uint8_t sdataPendLast, sdataPendTotal;
