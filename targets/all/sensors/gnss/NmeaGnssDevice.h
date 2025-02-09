@@ -24,10 +24,11 @@ public:
     NmeaGnssDevice(io::DuplexPipe pipe)
         : NmeaDevice(pipe) {}
 
-    const LocationData& LastLocation() const { return data; }
+    const LocationData& LastLocation() const { return stableData; }
 
 protected:
     virtual void OnMessage(io::Pipe::Iterator& message);
+    virtual void OnIdle();
 
 private:
     enum {
@@ -42,6 +43,7 @@ private:
         .hdop = NAN, .pdop = NAN, .vdop = NAN,
         .altitude = NAN, .separation = NAN,
     };
+    LocationData stableData = data;
     SatelliteData sdata[MaxGsvGroups];
     SatelliteData sdataPending = {};
     uint8_t sdataPendLast, sdataPendTotal;

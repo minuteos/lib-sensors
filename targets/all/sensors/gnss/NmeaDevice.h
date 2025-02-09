@@ -30,9 +30,11 @@ public:
     async(TxIdle, Timeout timeout = Timeout::Infinite) { return async_forward(tx.Empty, timeout); }
 
 protected:
+    async(SendMessage, const char* msg) { return async_forward(SendMessageF, "%s", msg); }
     async(SendMessageF, const char* format, ...) async_def_va(SendMessageFV, format, Timeout::Infinite, format);
     async(SendMessageFTimeout, Timeout timeout, const char* format, ...) async_def_va(SendMessageFV, format, timeout, format);
     async(SendMessageFV, Timeout timeout, const char* format, va_list va);
+    virtual void OnIdle() {}
     virtual void OnMessage(io::Pipe::Iterator& message) {}
 
     #pragma region Message readout helpers

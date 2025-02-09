@@ -57,7 +57,6 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
 
                 case ID("RMC"): // recommended minimum data (basic location, etc.)
                 {
-                    auto data = this->data;
                     data.source = this;
                     data.time = ReadDecimal(message);
                     data.status = ReadChar(message);
@@ -69,13 +68,11 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
                     data.magVariance = ReadFloat(message) * (ReadChar(message) == 'W' ? -1 : 1);
                     data.posMode = ReadChar(message);
                     data.navStatus = ReadChar(message);
-                    Update(data);
                     return;
                 }
 
                 case ID("VTG"):
                 {
-                    auto data = this->data;
                     data.course = ReadFloat(message);
                     ReadChar(message);  // fixed 'T'
                     data.magneticCourse = ReadFloat(message);
@@ -85,13 +82,11 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
                     data.groundSpeedKm = ReadFloat(message);
                     ReadChar(message);  // fixed 'K'
                     data.posMode = ReadChar(message);
-                    Update(data);
                     return;
                 }
 
                 case ID("GGA"): // fix data
                 {
-                    auto data = this->data;
                     data.time = ReadDecimal(message);
                     data.latitude = ReadDeg(message) * (ReadChar(message) == 'S' ? -1 : 1);
                     data.longitude = ReadDeg(message) * (ReadChar(message) == 'W' ? -1 : 1);
@@ -104,13 +99,11 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
                     ReadChar(message);  // fixed 'M'
                     data.diffAge = ReadNum(message);
                     data.diffStation = ReadNum(message);
-                    Update(data);
                     return;
                 }
 
                 case ID("GSA"): // satellite data
                 {
-                    auto data = this->data;
                     data.opMode = ReadChar(message);
                     data.navMode = ReadNum(message);
                     for (int i = 0; i < 12; i++) { ReadNum(message); }  // skip over satellite IDs
@@ -118,7 +111,6 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
                     data.hdop = ReadFloat(message);
                     data.vdop = ReadFloat(message);
                     data.systemId = ReadNum(message, 16);
-                    Update(data);
                     return;
                 }
 
@@ -211,12 +203,13 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
 
 }
 
-void NmeaGnssDevice::Update(const LocationData& data)
+void NmeaGnssDevice::OnIdle()
 {
-    if (memcmp(&this->data, &data, sizeof(LocationData)))
+    MYTRACE("---");
+    if (memcmp(&this->stableData, &this->data, sizeof(LocationData)))
     {
-        this->data = data;
-        kernel::FireEvent(data);
+        this->stableData = this->data;
+        kernel::FireEvent(this->stableData);
     }
 }
 
@@ -241,7 +234,7 @@ void NmeaGnssDevice::SaveSatelliteData(const SatelliteData& data)
     kernel::FireEvent(data);
 
     // update the number of tracked sats in LocationData
-    auto ld = this->data;
+    auto& ld = this->data;
     ld.lockSat = ld.trkSat = ld.visSat = ld.knownSat = 0;
     for (auto& sd: sdata)
     {
@@ -256,7 +249,6 @@ void NmeaGnssDevice::SaveSatelliteData(const SatelliteData& data)
             }
         }
     }
-    Update(ld);
 }
 
 }

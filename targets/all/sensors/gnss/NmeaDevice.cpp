@@ -39,8 +39,17 @@ async_def(size_t len)
         // skip the last message
         rx.Advance(f.len);
 
-        // skip to next '$'
-        f.len = await(rx.RequireUntil, '$');
+        // skip to next '$', detect idle
+        auto res = await_catch(rx.RequireUntil, '$', Timeout::Milliseconds(10));
+        if (res.Success())
+        {
+            f.len = res.Value();
+        }
+        else
+        {
+            OnIdle();
+            f.len = await(rx.RequireUntil, '$');
+        }
         rx.Advance(f.len);
         // wait until the entire message is buffered
         f.len = await(rx.RequireUntil, '\n');
@@ -109,9 +118,9 @@ async_def(
 {
     f.timeout = timeout.MakeAbsolute();
 
-    if (!await(tx.Write, "$", f.timeout)) { async_return(false); }
+    await(tx.Write, "$", f.timeout);
     f.start = tx.Position();
-    if (!await(tx.WriteFV, timeout, format, va)) { async_return(false); }
+    await(tx.WriteFV, timeout, format, va);
 
 #if NMEA_TRACE
     DBGC("NMEA", ">> ");
@@ -127,8 +136,7 @@ async_def(
     _DBGCHAR('\n');
 #endif
 
-    if (!await(tx.WriteFTimeout, timeout, "*%02X\r\n", f.checksum)) { async_return(false); }
-    async_return(true);
+    await(tx.WriteFTimeout, timeout, "*%02X\r\n", f.checksum);
 }
 async_end
 
