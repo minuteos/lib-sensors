@@ -24,6 +24,20 @@ public:
     }
 
     async(SetBaudRate, unsigned baudRate) { return async_forward(SendMessageF, "PUBX,41,1,3,3,%u,0", baudRate); }
+
+    const UbxData& ExtendedData() const { return stableData; }
+
+protected:
+    virtual void OnMessage(io::Pipe::Iterator& message);
+    virtual void OnIdle();
+
+    async(PollRequest) { return async_forward(SendMessage, "PUBX,00"); }
+
+private:
+    bool request00 = true;
+    UbxData data = { NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, 0, FixType::Unknown, -1 }, stableData = data;
+
+    FixType ReadFixType(io::Pipe::Iterator& message);
 };
 
 }

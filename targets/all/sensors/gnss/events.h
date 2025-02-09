@@ -45,4 +45,27 @@ struct SatelliteData
     constexpr uint16_t TalkerId() const { return groupId >> 8; }
 };
 
+enum struct FixType
+{
+    None,
+    DeadReckoning,
+    Std2D, Std3D,
+    Diff2D, Diff3D,
+    Combined,
+    TimeOnly,
+    Unknown,
+};
+
+struct UbxData
+{
+    float altitude;
+    float hAcc, vAcc;
+    float groundSpeedKm, course;
+    float vVel;
+    float hdop, vdop, tdop;
+    uint8_t numSat;
+    FixType fixType;
+    int16_t diffAge;
+};
+
 }
