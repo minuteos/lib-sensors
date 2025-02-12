@@ -14,10 +14,14 @@ namespace sensors::gnss
 
 void MaxM10::OnMessage(io::Pipe::Iterator& message)
 {
-    if (request00)
+    if (requestPoll)
     {
-        request00 = false;
-        kernel::Task::Run(this, &MaxM10::PollRequest);
+        requestPoll = false;
+        if (!activePoll)
+        {
+            activePoll = true;
+            kernel::Task::Run(this, &MaxM10::PollRequest);
+        }
     }
 
     if (!message.Matches("PUBX,00,"))
@@ -45,11 +49,19 @@ void MaxM10::OnMessage(io::Pipe::Iterator& message)
     data.numSat = ReadNum(message);
 }
 
+async(MaxM10::PollRequest)
+async_def()
+{
+    await(SendMessage, "PUBX,00");
+    activePoll = false;
+}
+async_end
+
 void MaxM10::OnIdle()
 {
     NmeaGnssDevice::OnIdle();
     stableData = data;
-    request00 = true;
+    requestPoll = true;
 }
 
 FixType MaxM10::ReadFixType(io::Pipe::Iterator& message)

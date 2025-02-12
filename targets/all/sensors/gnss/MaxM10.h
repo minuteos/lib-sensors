@@ -31,10 +31,11 @@ protected:
     virtual void OnMessage(io::Pipe::Iterator& message);
     virtual void OnIdle();
 
-    async(PollRequest) { return async_forward(SendMessage, "PUBX,00"); }
+    async(PollRequest);
 
 private:
-    bool request00 = true;
+    bool requestPoll = true;
+    bool activePoll = false;
     UbxData data = { NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, 0, FixType::Unknown, -1 }, stableData = data;
 
     FixType ReadFixType(io::Pipe::Iterator& message);
