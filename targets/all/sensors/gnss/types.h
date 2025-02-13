@@ -30,6 +30,7 @@ struct Date
         num /= 100;
         d = num;
     }
+    constexpr bool IsValid() const { return !!d; }
 
     uint8_t d, m, y;
 };
