@@ -130,7 +130,7 @@ void NmeaGnssDevice::OnMessage(io::Pipe::Iterator& message)
             int msgNum = ReadNum(message);
             uint8_t numSat = ReadNum(message);
             uint8_t numLock = 0, numVis = 0;
-            int nRec = msgNum == msgCnt ? numSat % 4 : 4;
+            int nRec = msgNum == msgCnt && numSat % 4 ? numSat % 4 : 4;
             for (int i = 0; i < nRec; i++)
             {
                 ReadNum(message);          // satId, don't care
