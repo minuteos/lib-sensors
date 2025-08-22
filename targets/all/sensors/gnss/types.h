@@ -22,6 +22,7 @@ struct Decimal
 struct Date
 {
     Date() {}
+    constexpr Date(int y, int m, int d) : d(d), m(m), y(y) {}
     ALWAYS_INLINE Date(int num)
     {
         y = num % 100;
@@ -38,6 +39,7 @@ struct Date
 struct Time
 {
     Time() {}
+    constexpr Time(int h, int m, int s, int hs = 0) : h(h), m(m), s(s), hs(hs) {}
     ALWAYS_INLINE Time(Decimal dec)
     {
         if (!dec.divisor)
@@ -54,6 +56,8 @@ struct Time
         dec.value /= 100;
         h = dec.value;
     }
+
+    constexpr uint32_t TotalSeconds() const { return h * 3600 + m * 60 + s; }
 
     uint8_t h, m, s, hs;
 };
